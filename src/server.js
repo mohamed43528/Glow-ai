@@ -1,21 +1,18 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "cors";
+import apiRouter from "./routes/index.js";
 
 dotenv.config();
-
 const app = express();
-app.use(cors());
+
 app.use(express.json());
 
-// Mount routes
-import registerRoutes from "./routes/index.js";
-registerRoutes(app);
+// Mount all routes under /api
+app.use("/api", apiRouter);
 
-// Root health check
 app.get("/", (req, res) => {
   res.send("Glow AI backend is running");
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Server running on port ${port}`));
