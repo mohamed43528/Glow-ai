@@ -1,1 +1,99 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
 
+model Business {
+  id           String           @id @default(cuid())
+  name         String
+  slug         String           @unique
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  services     Service[]
+  staff        Staff[]
+  settings     BusinessSettings?
+  bookings     Booking[]
+  customers    Customer[]
+}
+
+model BusinessSettings {
+  id               String  @id @default(cuid())
+  businessId       String  @unique
+  aiScheduler      Boolean @default(true)
+  aiVoice          Boolean @default(false)
+  aiChat           Boolean @default(false)
+  aiReminders      Boolean @default(true)
+  aiDoubleBooking  Boolean @default(true)
+  aiReviewBooster  Boolean @default(true)
+  Business         Business @relation(fields: [businessId], references: [id])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  duration    Int
+  price       Int
+  category    String?
+  buffer      Int      @default(0)
+  Business    Business @relation(fields: [businessId], references: [id])
+  bookings    Booking[]
+}
+
+model Staff {
+  id           String     @id @default(cuid())
+  businessId   String
+  name         String
+  Business     Business   @relation(fields: [businessId], references: [id])
+  workingHours StaffHours?
+  bookings     Booking[]
+}
+
+model StaffHours {
+  id      String  @id @default(cuid())
+  staffId String  @unique
+  mon     String?
+  tue     String?
+  wed     String?
+  thu     String?
+  fri     String?
+  sat     String?
+  sun     String?
+  Staff   Staff   @relation(fields: [staffId], references: [id])
+}
+
+model Customer {
+  id         String     @id @default(cuid())
+  businessId String
+  email      String
+  phone      String?
+  stripeId   String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  Business   Business   @relation(fields: [businessId], references: [id])
+  cards      Card[]
+  bookings   Booking[]
+}
+
+model Card {
+  id         String   @id @default(cuid())
+  customerId String
+  stripePM   String
+  isDefault  Boolean  @default(false)
+  Customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Booking {
+  id         String     @id @default(cuid())
+  businessId String
+  customerId String?
+  staffId    String?
+  serviceId  String
+  startTime  DateTime
+  endTime    DateTime
+  status     String     @default("scheduled")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  Business   Business   @relation(fields: [businessId], references: [id])
+  Customer   Customer?  @relation(fields: [customerId], references: [id])
+  Staff      Staff?     @relation(fields: [staffId], references: [id])
+  Service    Service    @relation(fields: [serviceId], references: [id])
+}
