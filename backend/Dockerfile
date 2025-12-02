@@ -1,1 +1,1 @@
-
+FROM node:18-alpine WORKDIR /app COPY package.json package-lock.json* ./ RUN npm install --production COPY . . RUN npx prisma generate EXPOSE 4000 CMD ["npm", "start"]
