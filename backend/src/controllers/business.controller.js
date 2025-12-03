@@ -1,9 +1,37 @@
-import { PrismaClient } from "@prisma/client"; const prisma = new PrismaClient();
+import prisma from "../prismaClient.js";
 
-export const getSettings = async (req, res) => { const { businessId } = req.business; const settings = await prisma.businessSettings.findUnique({ where: { businessId } }); res.json({ settings }); };
+/**
+ * Returns the BusinessSettings object for the authenticated business.
+ * req.business must be set by authBusiness middleware { businessId }
+ */
+export const getSettings = async (req, res) => {
+  try {
+    const { businessId } = req.business;
+    const settings = await prisma.businessSettings.findUnique({ where: { businessId } });
+    return res.json({ settings });
+  } catch (err) {
+    console.error("getSettings error:", err);
+    return res.status(500).json({ error: "Failed to fetch settings" });
+  }
+};
 
-export const updateSettings = async (req, res) => { const { businessId } = req.business; const data = req.body;
+/**
+ * Upserts (create or update) the BusinessSettings record for the business.
+ */
+export const updateSettings = async (req, res) => {
+  try {
+    const { businessId } = req.business;
+    const data = req.body || {};
 
-const updated = await prisma.businessSettings.upsert({ where: { businessId }, create: { businessId, ...data }, update: data });
+    const updated = await prisma.businessSettings.upsert({
+      where: { businessId },
+      create: { businessId, ...data },
+      update: data
+    });
 
-res.json({ settings: updated }); };
+    return res.json({ settings: updated });
+  } catch (err) {
+    console.error("updateSettings error:", err);
+    return res.status(500).json({ error: "Failed to update settings" });
+  }
+};
