@@ -1,37 +1,52 @@
-import prisma from "../prismaClient.js";
+// backend/src/controllers/customer.controller.js
+import { prisma } from "../lib/prismaClient.js";
+import { stripe } from "../config/stripe.js";
 
-/**
- * Returns the BusinessSettings object for the authenticated business.
- * req.business must be set by authBusiness middleware { businessId }
- */
-export const getSettings = async (req, res) => {
+export const getCustomerCards = async (req, res) => {
   try {
-    const { businessId } = req.business;
-    const settings = await prisma.businessSettings.findUnique({ where: { businessId } });
-    return res.json({ settings });
+    const { customerId } = req.user;
+    const cards = await prisma.card.findMany({ where: { customerId } });
+    return res.json({ cards });
   } catch (err) {
-    console.error("getSettings error:", err);
-    return res.status(500).json({ error: "Failed to fetch settings" });
+    console.error("getCustomerCards error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
-/**
- * Upserts (create or update) the BusinessSettings record for the business.
- */
-export const updateSettings = async (req, res) => {
+export const addCustomerCard = async (req, res) => {
   try {
-    const { businessId } = req.business;
-    const data = req.body || {};
+    const { customerId } = req.user;
+    const { paymentMethodId } = req.body;
+    if (!paymentMethodId) return res.status(400).json({ error: "paymentMethodId required" });
 
-    const updated = await prisma.businessSettings.upsert({
-      where: { businessId },
-      create: { businessId, ...data },
-      update: data
-    });
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
 
-    return res.json({ settings: updated });
+    if (!customer.stripeId) {
+      const stripeCustomer = await stripe.customers.create({ email: customer.email });
+      await prisma.customer.update({ where: { id: customerId }, data: { stripeId: stripeCustomer.id } });
+      customer.stripeId = stripeCustomer.id;
+    }
+
+    await stripe.paymentMethods.attach(paymentMethodId, { customer: customer.stripeId });
+    await prisma.card.create({ data: { customerId, stripePM: paymentMethodId } });
+
+    return res.json({ success: true });
   } catch (err) {
-    console.error("updateSettings error:", err);
-    return res.status(500).json({ error: "Failed to update settings" });
+    console.error("addCustomerCard error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const deleteCustomerCard = async (req, res) => {
+  try {
+    const { cardId } = req.body;
+    if (!cardId) return res.status(400).json({ error: "cardId required" });
+
+    await prisma.card.delete({ where: { id: cardId } });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("deleteCustomerCard error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
